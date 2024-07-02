@@ -1,8 +1,7 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox
 import customtkinter as ctk
-from core_all import compare_files
-import threading
+from core_all import compare_files  
 
 def select_target_file():
     file_path = filedialog.askopenfilename(filetypes=[("All files", "*.*")])
@@ -14,30 +13,23 @@ def select_folder():
     if folder_path:
         folder_path_var.set(folder_path)
 
-def run_comparison_thread():
+def run_comparison():
     target_file = target_file_path.get()
     folder = folder_path_var.get()
     if not target_file or not folder:
         messagebox.showerror("Error", "Please select both the target file and the folder.")
         return
-    
-    run_comparison_button.configure(state=tk.DISABLED)
 
     progress_bar.set(0)
     progress_label.configure(text="Starting...")
 
-    comparison_thread = threading.Thread(target=run_comparison, args=(target_file, folder))
-    comparison_thread.start()
+    root.update_idletasks()
 
-def run_comparison(target_file, folder):
     results = compare_files(target_file, folder, progress_callback)
     update_table(results)
 
-    run_comparison_button.configure(state=tk.NORMAL)
-
     progress_label.configure(text="Comparison complete.")
     progress_bar.set(100)
-
 
 def progress_callback(current, total, filename):
     progress_percentage = (current / total) * 100
@@ -62,7 +54,7 @@ def update_table(results):
 
 root = ctk.CTk()
 root.title("Anti-Plagiarism Tool")
-root.geometry("800x3000")
+root.geometry("800x600")
 
 target_file_path = tk.StringVar()
 folder_path_var = tk.StringVar()
@@ -81,8 +73,7 @@ ctk.CTkLabel(frame, text="Folder:", font=("Helvetica", 16)).grid(row=1, column=0
 ctk.CTkEntry(frame, textvariable=folder_path_var, width=400, font=("Helvetica", 14)).grid(row=1, column=1, padx=10, pady=10, sticky="ew")
 ctk.CTkButton(frame, text="Browse", command=select_folder).grid(row=1, column=2, padx=10, pady=10, sticky="w")
 
-run_comparison_button = ctk.CTkButton(frame, text="Run Comparison", command=run_comparison_thread, fg_color="#4CAF50", hover_color="#45A049", font=("Helvetica", 16))
-run_comparison_button.grid(row=2, column=0, columnspan=3, padx=10, pady=20, sticky="ew")
+ctk.CTkButton(frame, text="Run Comparison", command=run_comparison, fg_color="#4CAF50", hover_color="#45A049", font=("Helvetica", 16)).grid(row=2, column=0, columnspan=3, padx=10, pady=20, sticky="ew")
 
 progress_bar = ctk.CTkProgressBar(root, mode='determinate')
 progress_bar.grid(row=3, column=0, columnspan=3, pady=10, padx=20, sticky="ew")
@@ -93,6 +84,7 @@ progress_label.grid(row=4, column=0, columnspan=3, pady=5)
 
 result_frame = ctk.CTkFrame(root)
 result_frame.grid(row=5, column=0, columnspan=3, pady=20, padx=20, sticky="nsew")
+
 
 root.grid_rowconfigure(1, weight=1)
 root.grid_rowconfigure(5, weight=1)

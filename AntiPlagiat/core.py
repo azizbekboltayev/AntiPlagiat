@@ -33,6 +33,5 @@ def compare_files(target_file_path, folder_path):
             similarity = calculate_similarity(target_content, file_content)
             results.append((filename, similarity))
 
-    # Sort results by similarity in descending order
     results.sort(key=lambda x: x[1], reverse=True)
     return results

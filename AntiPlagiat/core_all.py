@@ -1,26 +1,13 @@
 import os
 import re
 from docx import Document
-from openpyxl import load_workbook
-from pptx import Presentation
-import PyPDF2
+from PyPDF2 import PdfReader
 import difflib
-
-
-import os
-import re
-from docx import Document
-import PyPDF2
-
-import os
-import re
-from docx import Document
-from PyPDF2 import PdfReader  # Import PdfReader from PyPDF2
+from concurrent.futures import ThreadPoolExecutor
 
 def read_file(file_path):
-    """ Read and return the contents of a file based on its type (PDF, DOCX, TXT). """
     _, file_extension = os.path.splitext(file_path.lower())
-    file_extension = file_extension[1:]  # Remove the dot from the extension
+    file_extension = file_extension[1:]
 
     if file_extension == 'txt':
         with open(file_path, 'r', encoding='utf-8') as file:
@@ -32,40 +19,47 @@ def read_file(file_path):
         with open(file_path, 'rb') as file:
             reader = PdfReader(file)
             text = []
-            for page_num in range(len(reader.pages)):
-                page = reader.pages[page_num]
+            for page in reader.pages:
                 text.append(page.extract_text())
             return '\n'.join(text)
     else:
-        return ''  # Handle unsupported file types or return an empty string
+        return ''
 
 def normalize_text(text):
-    """ Normalize text for comparison by removing punctuation and extra spaces, and converting to lowercase. """
     text = re.sub(r'[^\w\s]', '', text)
     text = text.lower()
     text = re.sub(r'\s+', ' ', text).strip()
     return text
 
-
 def calculate_similarity(file1_content, file2_content):
-    """ Calculate and return similarity percentage between two texts. """
     sequence_matcher = difflib.SequenceMatcher(None, file1_content, file2_content)
     return sequence_matcher.ratio() * 100
 
-def compare_files(target_file_path, folder_path):
-    """ Compare the target file with all files in a folder and return a list of (filename, similarity) tuples. """
+def process_file(file_path, target_content):
+    file_content = read_file(file_path)
+    file_content = normalize_text(file_content)
+    similarity = calculate_similarity(target_content, file_content)
+    return file_path, similarity
+
+def compare_files(target_file_path, folder_path, progress_callback=None):
     target_content = read_file(target_file_path)
     target_content = normalize_text(target_content)
     results = []
 
-    for filename in os.listdir(folder_path):
-        file_path = os.path.join(folder_path, filename)
-        if os.path.isfile(file_path):
-            file_content = read_file(file_path)
-            file_content = normalize_text(file_content)
-            similarity = calculate_similarity(target_content, file_content)
-            results.append((filename, similarity))
+    files = [f for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))]
+    total_files = len(files)
+    
+    with ThreadPoolExecutor() as executor:
+        futures = []
+        for i, filename in enumerate(files):
+            file_path = os.path.join(folder_path, filename)
+            futures.append(executor.submit(process_file, file_path, target_content))
 
-    # Sort results by similarity in descending order
+        for i, future in enumerate(futures):
+            result = future.result()
+            results.append(result)
+            if progress_callback:
+                progress_callback(i + 1, total_files, result[0])
+
     results.sort(key=lambda x: x[1], reverse=True)
     return results
